@@ -1,20 +1,23 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-demo",
+  "productName": "赛博土拨鼠大战",
   "version": "0.1.0",
-  "identifier": "com.tauri-demo.app",
+  "identifier": "com.cybergroundhog.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
-        "title": "tauri-demo",
-        "width": 800,
-        "height": 600
+        "title": "赛博土拨鼠大战",
+        "width": 1024,
+        "height": 768,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
       }
     ],
     "security": {
