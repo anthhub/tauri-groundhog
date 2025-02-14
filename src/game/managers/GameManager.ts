@@ -1,148 +1,67 @@
-import { GameState, GroundhogConfig, GameScore } from '../types/game';
+import { GroundhogConfig } from '../types/game';
 import { GAME_CONFIG } from '../config/assets';
 
 export class GameManager {
-  private groundhogs: GroundhogConfig[] = [];
-  private gameState: GameState = 'idle';
-  private score: GameScore = { hits: 0, misses: 0, combo: 0 };
-  private spawnInterval: number | null = null;
-  private gameLoop: number | null = null;
-  private lastUpdate: number = 0;
+  private _groundhogs: GroundhogConfig[] = [];
+  private nextId = 1;
+  private isRunning = false;
 
-  constructor(private width: number, private height: number) {
-    // Initialize with one groundhog for testing
-    this.spawnGroundhog();
+  constructor() {
+    this._groundhogs = [];
   }
 
   start() {
-    if (this.gameState === 'playing') return;
-    
-    this.gameState = 'playing';
-    this.score = { hits: 0, misses: 0, combo: 0 };
-    this.lastUpdate = Date.now();
-    this.startSpawning();
-    this.startGameLoop();
+    this.isRunning = true;
+    this._groundhogs = [];
+    this.spawnGroundhog();
   }
 
-  pause() {
-    if (this.gameState !== 'playing') return;
-    this.gameState = 'paused';
-    this.stopSpawning();
-    this.stopGameLoop();
+  stop() {
+    this.isRunning = false;
+    this._groundhogs = [];
   }
 
-  resume() {
-    if (this.gameState !== 'paused') return;
-    this.gameState = 'playing';
-    this.lastUpdate = Date.now();
-    this.startSpawning();
-    this.startGameLoop();
-  }
+  update() {
+    if (!this.isRunning) return;
 
-  cleanup() {
-    this.stopSpawning();
-    this.stopGameLoop();
-    this.groundhogs = [];
-  }
-
-  getState(): GameState {
-    return this.gameState;
-  }
-
-  getScore(): GameScore {
-    return this.score;
-  }
-
-  getGroundhogs(): GroundhogConfig[] {
-    return this.groundhogs;
-  }
-
-  hitGroundhog(index: number) {
-    if (this.gameState !== 'playing') return;
-
-    const groundhog = this.groundhogs[index];
-    if (!groundhog) return;
-
-    groundhog.health--;
-    if (groundhog.health <= 0) {
-      this.groundhogs = this.groundhogs.filter((_, i) => i !== index);
+    // 随机生成新地鼠
+    if (this._groundhogs.length < GAME_CONFIG.groundhog.maxGroundhogs && Math.random() < 0.05) {
+      this.spawnGroundhog();
     }
 
-    this.score.hits++;
-    this.score.combo++;
+    // 更新现有地鼠
+    this._groundhogs = this._groundhogs.filter(groundhog => {
+      groundhog.lifetime -= 16;
+      return groundhog.lifetime > 0;
+    });
   }
 
-  missHit() {
-    if (this.gameState !== 'playing') return;
-    this.score.misses++;
-    this.score.combo = 0;
-  }
-
-  private startGameLoop() {
-    if (this.gameLoop) return;
-
-    const updateFrame = () => {
-      const now = Date.now();
-      const deltaTime = now - this.lastUpdate;
-      this.lastUpdate = now;
-
-      this.update(deltaTime);
-      this.gameLoop = requestAnimationFrame(updateFrame);
-    };
-
-    this.lastUpdate = Date.now();
-    this.gameLoop = requestAnimationFrame(updateFrame);
-  }
-
-  private stopGameLoop() {
-    if (this.gameLoop) {
-      cancelAnimationFrame(this.gameLoop);
-      this.gameLoop = null;
-    }
-  }
-
-  private startSpawning() {
-    if (this.spawnInterval) return;
-
-    this.spawnInterval = window.setInterval(() => {
-      if (this.groundhogs.length < GAME_CONFIG.groundhog.maxGroundhogs) {
-        this.spawnGroundhog();
-      }
-    }, GAME_CONFIG.groundhog.spawnInterval);
-  }
-
-  private stopSpawning() {
-    if (this.spawnInterval) {
-      window.clearInterval(this.spawnInterval);
-      this.spawnInterval = null;
-    }
+  removeGroundhog(id: string) {
+    this._groundhogs = this._groundhogs.filter(g => g.id !== id);
   }
 
   private spawnGroundhog() {
-    const margin = 50;
-    const x = Math.random() * (this.width - margin * 2) + margin;
-    const y = Math.random() * (this.height - margin * 2) + margin;
-
-    this.groundhogs.push({
+    const id = String(this.nextId++);
+    
+    // 将画布分成 3x3 的网格，在网格交叉点生成地鼠
+    const gridSize = 3;
+    const margin = 100;
+    const gridX = Math.floor(Math.random() * gridSize);
+    const gridY = Math.floor(Math.random() * gridSize);
+    
+    const x = margin + (800 - 2 * margin) * (gridX / (gridSize - 1));
+    const y = margin + (600 - 2 * margin) * (gridY / (gridSize - 1));
+    
+    this._groundhogs.push({
+      id,
       x,
       y,
-      scale: 1,
-      speed: GAME_CONFIG.groundhog.baseSpeed * (1 + Math.random() * 0.5),
-      health: GAME_CONFIG.groundhog.baseHealth,
+      scale: 0.8, // 增大地鼠尺寸
+      lifetime: 3000, // 3秒后消失
     });
   }
 
-  private update(deltaTime: number) {
-    if (this.gameState !== 'playing') return;
-
-    // Update groundhog positions
-    this.groundhogs.forEach((groundhog) => {
-      groundhog.x += groundhog.speed * (deltaTime / 1000);
-      
-      // Wrap around when reaching screen edge
-      if (groundhog.x > this.width + 50) {
-        groundhog.x = -50;
-      }
-    });
+  get groundhogs() {
+    return this._groundhogs;
   }
 }
